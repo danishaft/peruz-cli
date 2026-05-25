@@ -58,7 +58,7 @@
     "events": "^3.3.0",
     "stream-browserify": "^3.0.0",
     "vite-plugin-node-polyfills": "^0.24.0",
-    "zod": "^4.3.5"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.11",
