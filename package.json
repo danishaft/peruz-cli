@@ -52,22 +52,22 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@jridgewell/source-map": "^0.3.11",
-    "@modelcontextprotocol/sdk": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.1",
     "events": "^3.3.0",
     "stream-browserify": "^3.0.0",
-    "vite-plugin-node-polyfills": "^0.24.0",
-    "zod": "^4.3.5"
+    "vite-plugin-node-polyfills": "^0.28.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.11",
-    "@types/chrome": "^0.0.287",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@biomejs/biome": "^2.4.15",
+    "@types/chrome": "^0.1.42",
+    "@vitest/coverage-v8": "^4.1.7",
     "@vitest/ui": "^4.0.16",
     "jsdom": "^29.1.1",
-    "typescript": "^5.7.2",
-    "vite": "^7.3.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14",
     "vitest": "^4.0.16"
   }
 }
