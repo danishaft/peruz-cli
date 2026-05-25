@@ -1,5 +1,5 @@
 <p>
-  <img src="surf-banner.png" alt="Peruz" width="1100">
+  <img src="peruz-banner.png" alt="Peruz" width="1100">
 </p>
 
 # Peruz
