@@ -2546,8 +2546,8 @@ function searchPageText(term: string, caseSensitive: boolean, limit: number) {
     const textContent = node.textContent || "";
     const searchIn = caseSensitive ? textContent : textContent.toLowerCase();
     
-    let pos = 0;
-    while ((pos = searchIn.indexOf(searchTerm, pos)) !== -1 && matches.length < limit) {
+    let pos = searchIn.indexOf(searchTerm);
+    while (pos !== -1 && matches.length < limit) {
       const parent = node.parentElement;
       if (!parent) { pos++; continue; }
       
@@ -2585,7 +2585,7 @@ function searchPageText(term: string, caseSensitive: boolean, limit: number) {
         elementRef,
       });
       
-      pos++;
+      pos = searchIn.indexOf(searchTerm, pos + 1);
     }
   }
   

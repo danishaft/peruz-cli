@@ -809,8 +809,6 @@ function maybeAutoCleanup() {
 maybeAutoCleanup();
 
 module.exports = {
-  // Configuration
-  getBasePath,
   getRequestsPath,
   getBodiesPath,
   getMetaPath,

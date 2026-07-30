@@ -813,9 +813,10 @@ function mapToolToMessage(tool, args, tabId) {
       return { type: "DIALOG_INFO", ...baseMsg };
     case "emulate.network":
       return { type: "EMULATE_NETWORK", preset: a.preset, ...baseMsg };
-    case "emulate.cpu":
+    case "emulate.cpu": {
       const cpuRate = parseFloat(a.rate);
       return { type: "EMULATE_CPU", rate: isNaN(cpuRate) ? 1 : cpuRate, ...baseMsg };
+    }
     case "emulate.geo":
       if (a.clear) {
         return { type: "EMULATE_GEO", clear: true, ...baseMsg };
@@ -841,21 +842,23 @@ function mapToolToMessage(tool, args, tabId) {
       };
     case "emulate.touch":
       return { type: "EMULATE_TOUCH", enabled: a.enabled !== false, ...baseMsg };
-    case "form.fill":
+    case "form.fill": {
       let fillData = a.data;
       if (typeof fillData === "string") {
         try { fillData = JSON.parse(fillData); } catch (e) { throw new Error("invalid --data JSON"); }
       }
       return { type: "FORM_FILL", data: fillData, ...baseMsg };
+    }
     case "perf.start":
       return { type: "PERF_START", categories: a.categories ? a.categories.split(",") : undefined, ...baseMsg };
     case "perf.stop":
       return { type: "PERF_STOP", ...baseMsg };
     case "perf.metrics":
       return { type: "PERF_METRICS", ...baseMsg };
-    case "upload":
+    case "upload": {
       const files = a.files ? (typeof a.files === "string" ? a.files.split(",").map(f => f.trim()) : a.files) : [];
       return { type: "UPLOAD_FILE", ref: a.ref, files, ...baseMsg };
+    }
     case "page.read":
       return { 
         type: "READ_PAGE", 

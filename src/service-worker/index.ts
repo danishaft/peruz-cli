@@ -1205,7 +1205,7 @@ export async function handleMessage(
       } catch (e) {}
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      let result;
+      let result: Record<string, unknown>;
       try {
         result = await chrome.tabs.sendMessage(tabId, {
           type: "GENERATE_ACCESSIBILITY_TREE",

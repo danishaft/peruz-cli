@@ -2413,7 +2413,9 @@ if (args[0] === "do") {
       const argErrors = validateWorkflowArgs(workflow, workflowArgs);
       if (argErrors.length > 0) {
         console.error("Error: Missing required arguments:");
-        argErrors.forEach(e => console.error(`  ${e}`));
+        argErrors.forEach((error) => {
+          console.error(`  ${error}`);
+        });
         if (workflow.args) {
           console.error(`\nWorkflow arguments:`);
           for (const [name, spec] of Object.entries(workflow.args)) {

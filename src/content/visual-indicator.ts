@@ -203,8 +203,12 @@ function createStaticIndicator(): HTMLDivElement {
 
   if (chatButton) {
     chatButton.style.pointerEvents = "auto";
-    chatButton.addEventListener("mouseenter", () => chatButton.style.background = "#F0EEE6");
-    chatButton.addEventListener("mouseleave", () => chatButton.style.background = "transparent");
+    chatButton.addEventListener("mouseenter", () => {
+      chatButton.style.background = "#F0EEE6";
+    });
+    chatButton.addEventListener("mouseleave", () => {
+      chatButton.style.background = "transparent";
+    });
     chatButton.addEventListener("click", async () => {
       await chrome.runtime.sendMessage({ type: "OPEN_SIDEPANEL" });
     });
@@ -212,8 +216,12 @@ function createStaticIndicator(): HTMLDivElement {
 
   if (closeButton) {
     closeButton.style.pointerEvents = "auto";
-    closeButton.addEventListener("mouseenter", () => closeButton.style.background = "#F0EEE6");
-    closeButton.addEventListener("mouseleave", () => closeButton.style.background = "transparent");
+    closeButton.addEventListener("mouseenter", () => {
+      closeButton.style.background = "#F0EEE6";
+    });
+    closeButton.addEventListener("mouseleave", () => {
+      closeButton.style.background = "transparent";
+    });
     closeButton.addEventListener("click", async () => {
       await chrome.runtime.sendMessage({ type: "DISMISS_STATIC_INDICATOR" });
       hideStaticIndicator();

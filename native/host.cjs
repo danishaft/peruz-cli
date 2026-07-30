@@ -1374,10 +1374,11 @@ function processInput() {
 }
 
 process.stdin.on("readable", () => {
-  let chunk;
-  while ((chunk = process.stdin.read()) !== null) {
+  let chunk = process.stdin.read();
+  while (chunk !== null) {
     inputBuffer = Buffer.concat([inputBuffer, chunk]);
     processInput();
+    chunk = process.stdin.read();
   }
 });
 

@@ -169,7 +169,9 @@ function httpsPost(url, headers, body, opts = {}) {
     const req = https.request(options, (res) => {
       if (log) log(`${label}: response ${res.statusCode} ${urlObj.hostname}${urlObj.pathname}`);
       let data = "";
-      res.on("data", chunk => data += chunk);
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
       res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, text: data }));
       res.on("error", (err) => {
         if (log) log(`${label}: response error ${err.message}`);
