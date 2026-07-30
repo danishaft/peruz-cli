@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  lint:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: "24"
           cache: 'npm'
 
       - name: Install dependencies
@@ -24,15 +24,30 @@ jobs:
       - name: Run linter
         run: npm run lint
 
-  test:
+      - name: Check types
+        run: npm run check
+
+      - name: Check CLI syntax
+        run: npm run check:cli
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build extension
+        run: npm run build
+
+  compatibility:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["22", "24"]
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
       - name: Install dependencies
@@ -40,23 +55,6 @@ jobs:
 
       - name: Run tests
         run: npm test
-
-  typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "25"
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: TypeScript check
-        run: npm run check
 
   audit:
     runs-on: ubuntu-latest
@@ -66,7 +64,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: "24"
           cache: 'npm'
 
       - name: Security audit

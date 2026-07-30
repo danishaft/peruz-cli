@@ -22,6 +22,9 @@
     "url": "https://github.com/danishaft/peruz-cli/issues"
   },
   "homepage": "https://github.com/danishaft/peruz-cli#readme",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "bin": {
     "peruz": "native/cli.cjs",
@@ -38,9 +41,9 @@
     "dev": "vite build --watch --mode development",
     "build": "vite build",
     "check": "tsc --noEmit",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
-    "lint:test": "biome check test/",
+    "check:cli": "node --check native/cli.cjs",
+    "lint": "biome lint --diagnostic-level=error .",
+    "lint:fix": "biome lint --write .",
     "format": "biome format --write .",
     "test": "vitest run",
     "test:watch": "vitest",
