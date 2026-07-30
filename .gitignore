@@ -13,3 +13,4 @@ FEATURE_COMPARISON.md
 memory/
 native/.agent/
 native/DOCS/
+native/test-results/
