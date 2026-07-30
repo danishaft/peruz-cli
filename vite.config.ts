@@ -30,6 +30,8 @@ export default defineConfig({
         "options/options": resolve(__dirname, "src/options/options.html"),
       },
       output: {
+        banner: (chunk) => (chunk.name.startsWith("content/") ? "(() => {" : ""),
+        footer: (chunk) => (chunk.name.startsWith("content/") ? "})();" : ""),
         entryFileNames: "[name].js",
         chunkFileNames: "chunks/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",
