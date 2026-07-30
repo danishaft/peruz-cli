@@ -96,6 +96,18 @@ Frame selection changes the active execution context. Window and tab IDs can be
 passed explicitly, which lets an agent operate in an isolated browser window
 without silently changing the user's active target.
 
+## Grab content scripts
+
+The top frame owns one Grab launcher. `grab-launcher.ts` creates the visible
+control, starts a capture through the extension worker, and formats a local
+fallback if the native host is unavailable. `draggable-overlay.ts` owns pointer
+movement, viewport clamping, and click suppression after a drag. The visual
+indicator does not create a second launcher.
+
+The worker injects the extractor and picker only for an active capture. They
+identify the selected element, gather bounded DOM and style context, and return
+the result through the same correlated request path as CLI captures.
+
 ## Network capture
 
 ```mermaid
@@ -145,6 +157,20 @@ extensions.
 The installation path differs by operating system and browser. That is why
 browser and operating-system compatibility remains an end-to-end verification
 task rather than a unit-test claim.
+
+## Browser portability
+
+The current browser boundary targets Chromium and depends on Chrome extension
+APIs, Chrome Native Messaging locations, and CDP behavior. Chrome, Chromium,
+Brave, Edge, and Arc can share this implementation where their installation
+paths are supported.
+
+Supporting another engine requires an adapter for extension APIs, debugging,
+and native-host installation. Firefox can reuse the CLI, socket protocol,
+native host, command schemas, and most content scripts, but it needs a
+WebExtensions and WebDriver BiDi adapter. Safari requires a separately packaged
+Safari Web Extension and native host integration. Peruz does not claim either
+engine until its browser matrix passes end to end.
 
 ## Failure behavior
 

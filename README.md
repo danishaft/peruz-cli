@@ -125,6 +125,21 @@ peruz console
 Screenshots are resized to a maximum dimension of 1200 pixels unless `--full`
 is set.
 
+### Grab page elements
+
+Use Grab when you need implementation context for one visible element:
+
+```bash
+peruz grab
+peruz grab --format json
+peruz grab --verbose
+```
+
+The extension also displays a **Grab** control on supported pages. Drag the
+control to any viewport position, or select it to start the picker. A completed
+drag does not start a capture. Peruz keeps the control inside the viewport when
+you drag it or resize the window.
+
 ### Network and performance
 
 ```bash
