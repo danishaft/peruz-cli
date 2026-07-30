@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.11/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
   "files": {
     "includes": [
       "src/**/*.ts",
@@ -13,12 +13,10 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "nursery": {
         "noFloatingPromises": "warn",
-        "noMisusedPromises": "warn",
-        "noShadow": "warn",
-        "noUnnecessaryConditions": "warn"
+        "noMisusedPromises": "warn"
       },
       "suspicious": {
         "noExplicitAny": "warn",
@@ -26,7 +24,9 @@
         "noDebugger": "error",
         "noFocusedTests": "error",
         "noSkippedTests": "warn",
-        "noTsIgnore": "error"
+        "noTsIgnore": "error",
+        "noShadow": "warn",
+        "noUnnecessaryConditions": "warn"
       },
       "style": {
         "useNodejsImportProtocol": "warn"
