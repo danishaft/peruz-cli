@@ -56,7 +56,6 @@ describe("grab launcher", () => {
       configurable: true,
     });
 
-    // @ts-expect-error This content script is side-effect only, not a typed module.
     await import("../../../src/content/grab-launcher");
 
     const button = document.querySelector<HTMLButtonElement>("#peruz-grab-launcher button");
@@ -80,5 +79,60 @@ describe("grab launcher", () => {
       expect.stringContaining("- URL: https://app.example.com/billing"),
     );
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("- Selector: #subscribe"));
+  });
+
+  it("drags within the viewport without starting a grab", async () => {
+    const sendMessage = vi.fn();
+    Object.defineProperty(globalThis, "chrome", {
+      value: {
+        runtime: {
+          sendMessage,
+          onMessage: { addListener: vi.fn() },
+        },
+      },
+      configurable: true,
+    });
+    Object.defineProperty(window, "innerWidth", { value: 500, configurable: true });
+    Object.defineProperty(window, "innerHeight", { value: 300, configurable: true });
+
+    await import("../../../src/content/grab-launcher");
+
+    const launcher = document.querySelector<HTMLDivElement>("#peruz-grab-launcher");
+    const button = launcher?.querySelector<HTMLButtonElement>("button");
+    expect(launcher).toBeTruthy();
+    expect(button).toBeTruthy();
+
+    vi.spyOn(launcher as HTMLDivElement, "getBoundingClientRect").mockReturnValue({
+      x: 350,
+      y: 240,
+      left: 350,
+      top: 240,
+      right: 492,
+      bottom: 282,
+      width: 142,
+      height: 42,
+      toJSON: () => ({}),
+    });
+
+    function pointerEvent(
+      type: string,
+      properties: { clientX: number; clientY: number; pointerId: number },
+    ): Event {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.assign(event, { ...properties, button: 0 });
+      return event;
+    }
+
+    launcher?.dispatchEvent(
+      pointerEvent("pointerdown", { clientX: 400, clientY: 260, pointerId: 1 }),
+    );
+    window.dispatchEvent(pointerEvent("pointermove", { clientX: 900, clientY: 700, pointerId: 1 }));
+    window.dispatchEvent(pointerEvent("pointerup", { clientX: 900, clientY: 700, pointerId: 1 }));
+    button?.click();
+
+    expect(launcher?.style.left).toBe("350px");
+    expect(launcher?.style.top).toBe("250px");
+    expect(launcher?.dataset.dragging).toBe("false");
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });

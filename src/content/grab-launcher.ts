@@ -1,3 +1,5 @@
+import { makeViewportDraggable } from "./draggable-overlay";
+
 (() => {
   type LauncherState = "idle" | "selecting" | "success" | "error";
 
@@ -162,7 +164,6 @@
     text.textContent = "Grab";
 
     button.append(mark, text);
-    button.addEventListener("click", () => startGrab());
     button.addEventListener("mouseenter", () => {
       if (state === "idle") setStatus("Grab element");
       if (status) {
@@ -179,10 +180,16 @@
 
     root.append(status, button);
     document.documentElement.append(root);
+
+    const dragController = makeViewportDraggable(root);
+    button.addEventListener("click", () => {
+      if (dragController.consumeDraggedClick()) return;
+      void startGrab();
+    });
   }
 
   function quoteText(text: string | undefined): string {
-    if (!text) return '\"\"';
+    if (!text) return '""';
     return `"${String(text).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
   }
 
@@ -233,14 +240,20 @@
     lines.push(...formatEventListeners(bundle));
 
     if (bundle.component) {
-      const via = bundle.component.via ? ` (${bundle.component.label || "React"}, via ${bundle.component.via})` : "";
+      const via = bundle.component.via
+        ? ` (${bundle.component.label || "React"}, via ${bundle.component.via})`
+        : "";
       lines.push("", `## Component${via}`);
       if (bundle.component.stack) {
-        lines.push(`- Stack: ${Array.isArray(bundle.component.stack) ? bundle.component.stack.join(" -> ") : bundle.component.stack}`);
+        lines.push(
+          `- Stack: ${Array.isArray(bundle.component.stack) ? bundle.component.stack.join(" -> ") : bundle.component.stack}`,
+        );
       }
       if (bundle.component.source) lines.push(`- Source: ${bundle.component.source}`);
       if (bundle.component.props) {
-        lines.push(`- Props: ${typeof bundle.component.props === "string" ? bundle.component.props : JSON.stringify(bundle.component.props)}`);
+        lines.push(
+          `- Props: ${typeof bundle.component.props === "string" ? bundle.component.props : JSON.stringify(bundle.component.props)}`,
+        );
       }
     }
 
@@ -251,7 +264,7 @@
       ["font", "font"],
       ["padding", "padding"],
       ["border-radius", "border-radius"],
-    ].flatMap(([field, label]) => styles[field] ? [`- ${label}: ${styles[field]}`] : []);
+    ].flatMap(([field, label]) => (styles[field] ? [`- ${label}: ${styles[field]}`] : []));
     const computedStyles = bundle.verbose?.computedStyles || {};
     const computedKeys = Object.keys(computedStyles).sort();
     if (computedKeys.length > 0) {
@@ -268,15 +281,20 @@
         const grabbed = ancestor.grabbed ? "          <-- grabbed" : "";
         lines.push(`${index + 1}. ${indent}${ancestor.html || ""}${grabbed}`);
       });
-      if (bundle.verbose?.siblings?.previous) lines.push(`- Previous sibling: ${bundle.verbose.siblings.previous}`);
-      if (bundle.verbose?.siblings?.next) lines.push(`- Next sibling: ${bundle.verbose.siblings.next}`);
+      if (bundle.verbose?.siblings?.previous)
+        lines.push(`- Previous sibling: ${bundle.verbose.siblings.previous}`);
+      if (bundle.verbose?.siblings?.next)
+        lines.push(`- Next sibling: ${bundle.verbose.siblings.next}`);
     }
 
     return `${lines.join("\n")}\n`;
   }
 
   function isUnknownUiMessage(response: GrabUiResponse | undefined): boolean {
-    return typeof response?.error === "string" && response.error.includes("Unknown message type: PERUZ_GRAB_FROM_UI");
+    return (
+      typeof response?.error === "string" &&
+      response.error.includes("Unknown message type: PERUZ_GRAB_FROM_UI")
+    );
   }
 
   async function copyFallback(output: string | undefined): Promise<boolean> {
@@ -302,15 +320,16 @@
   }
 
   async function captureWithLegacyWorker(): Promise<GrabUiResponse> {
-    const response = await chrome.runtime.sendMessage({
+    const response = (await chrome.runtime.sendMessage({
       type: "GRAB_ELEMENT",
       depth: 5,
       mode: "oneshot",
       noScreenshot: true,
-    }) as GrabUiResponse;
+    })) as GrabUiResponse;
 
-    if (response?.cancelled) return { cancelled: true };
-    if (response?.error || !response?.bundle) return { success: false, error: response?.error || "Grab failed" };
+    if (response.cancelled) return { cancelled: true };
+    if (response.error || !response.bundle)
+      return { success: false, error: response.error || "Grab failed" };
 
     const output = formatFallbackMarkdown(response.bundle);
     const copied = await copyFallback(output);
@@ -323,11 +342,11 @@
   }
 
   async function captureFromUi(): Promise<GrabUiResponse> {
-    const response = await chrome.runtime.sendMessage({
+    const response = (await chrome.runtime.sendMessage({
       type: "PERUZ_GRAB_FROM_UI",
       depth: 5,
       format: "markdown",
-    }) as GrabUiResponse;
+    })) as GrabUiResponse;
 
     if (isUnknownUiMessage(response)) return captureWithLegacyWorker();
     return response;
@@ -345,12 +364,12 @@
     try {
       const response = await captureFromUi();
 
-      if (response?.cancelled) {
+      if (response.cancelled) {
         setState("idle", "Cancelled");
         return;
       }
-      if (response?.error || !response?.success) {
-        setState("error", response?.error || "Grab failed");
+      if (response.error || !response.success) {
+        setState("error", response.error || "Grab failed");
         return;
       }
 
@@ -373,7 +392,9 @@
     if (message?.type !== "PERUZ_GRAB_LAUNCHER_START") return false;
     startGrab()
       .then(() => sendResponse({ success: true }))
-      .catch((error: unknown) => sendResponse({ error: error instanceof Error ? error.message : String(error) }));
+      .catch((error: unknown) =>
+        sendResponse({ error: error instanceof Error ? error.message : String(error) }),
+      );
     return true;
   });
 
