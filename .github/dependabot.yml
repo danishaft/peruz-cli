@@ -15,7 +15,9 @@ updates:
           - version-update:semver-major
       - dependency-name: "@types/chrome"
         update-types:
+          - version-update:semver-major
           - version-update:semver-minor
+          - version-update:semver-patch
 
   - package-ecosystem: "github-actions"
     directory: "/"
