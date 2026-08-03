@@ -135,17 +135,19 @@ system does not claim that a page fallback is equivalent to a provider API.
 
 ## Security boundaries
 
-The native host creates `/tmp/surf.sock` with mode `0600`, limiting access to
-the current Unix user. Native Messaging also requires the installed extension
-ID in the browser manifest.
+The native host creates its Unix socket with mode `0600` inside an owner-only
+runtime directory. The directory is selected from `$PERUZ_RUNTIME_DIR`,
+`$XDG_RUNTIME_DIR/peruz`, or `/tmp/peruz-<uid>`, in that order. Native Messaging
+also requires the installed extension ID in the browser manifest.
 
 The extension remains highly privileged within browser-granted permissions. The
 socket boundary prevents other operating-system users from connecting, but it
 does not protect a user from an untrusted local process running under the same
 account.
 
-Files written to `/tmp` can include screenshots, logs, and network records.
-Users should isolate automation profiles and avoid retaining sensitive output.
+Generated screenshots, bounded logs, session state, and network records use the
+same owner-only directory. Users should isolate automation profiles and avoid
+retaining sensitive output.
 
 ## Installation model
 

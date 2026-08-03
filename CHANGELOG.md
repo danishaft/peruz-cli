@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Security
+
+- Store sockets, logs, captures, network bodies, and session state in an
+  owner-only runtime directory.
+- Remove the unused native-host credential export and restore TLS certificate
+  verification for Gemini requests.
+- Replace shell-based image resizing with argument-safe subprocess execution.
+
 ## [2.5.2] - 2026-01-28
 
 ### Fixed

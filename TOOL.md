@@ -12,7 +12,7 @@ read page text, or check localhost apps from your phone workflow.
 
 - Primary: `peruz`
 - Alias: `surf` (legacy compatibility alias)
-- Local path fallback: `node /home/ayodele/Desktop/catharis/active/peruz-cli/native/cli.cjs`
+- Local path fallback: `node native/cli.cjs`
 
 ## When agents should use it
 
@@ -39,15 +39,15 @@ read page text, or check localhost apps from your phone workflow.
 
 ## Quick test
 
-1. `node /home/ayodele/Desktop/catharis/active/peruz-cli/native/cli.cjs --version`
-2. `node /home/ayodele/Desktop/catharis/active/peruz-cli/native/cli.cjs tab.new http://localhost:3000`
-3. `node /home/ayodele/Desktop/catharis/active/peruz-cli/native/cli.cjs page.read`
-4. `node /home/ayodele/Desktop/catharis/active/peruz-cli/native/cli.cjs screenshot --output /tmp/peruz-test.png`
+1. `peruz --version`
+2. `peruz tab.new http://localhost:3000`
+3. `peruz page.read`
+4. `peruz screenshot`
 
 ## Known limits
 
 - Native messaging host name remains `surf.browser.host` for compatibility.
-- Socket path still uses `/tmp/surf.sock` for compatibility.
+- Runtime paths are private to the current operating-system user.
 - Sites with CAPTCHA, anti-bot checks, or strong fraud controls can block
   automation.
 - `health` checks can time out even when basic browser control works.

@@ -107,7 +107,7 @@ Sections always appear in this order. Missing sections are omitted entirely, nev
 5.         <span>Sign In</span>
 
 ## Screenshot
-/tmp/peruz-grab-001.png
+<peruz-runtime-directory>/grab-001.png
 ```
 
 `--verbose` adds: full computed style dump, attached event listeners, sibling neighbors (prev/next). Nothing else.
@@ -154,7 +154,7 @@ Every one of these is locked. Don't relitigate without raising it first.
 Plus from the earlier round:
 
 - **Picker visual:** thin border + corner label showing role/component. No DevTools-style full overlay.
-- **Screenshot location:** `/tmp/peruz-grab-NNN.png`. Ephemeral.
+- **Screenshot location:** `<peruz-runtime-directory>/grab-NNN.png`. Ephemeral.
 - **React detection:** auto-sniff fiber root. No flag.
 - **Clipboard on Linux:** shell out to `wl-copy` first, `xclip -selection clipboard` fallback. Warn if neither installed.
 - **Naming:** the verb is `grab`. Not `pick`, not `tag`.
@@ -222,10 +222,10 @@ Tasks:
    - Thin outline + corner label showing tag and role
    - Hover passes through; hold Alt → lock outline on element under cursor; click while Alt-held → commit; release Alt without click → unlock; Escape → cancel
 5. DOM extractor (`src/content/grab-extractor.ts`): tag, id, classes, role, ARIA attrs, visible text, unique CSS selector, XPath, computed style subset (color, background, font, padding, border-radius, display, position), bounding box, ancestor chain up to `--depth` (default 5).
-6. Cropped element screenshot using existing peruz snap → `/tmp/peruz-grab-NNN.png`. Increment N across grabs in a session.
+6. Cropped element screenshot using existing peruz snap → `<peruz-runtime-directory>/grab-NNN.png`. Increment N across grabs in a session.
 7. Markdown formatter (`native/formatters/grab-markdown.cjs`): emits exactly the schema in section 4. Sections always ordered, omit-when-empty.
 8. Clipboard writer: `wl-copy` → fallback `xclip -selection clipboard`. Warn if neither.
-9. `grab.last` cache: write last bundle to `/tmp/peruz-grab-last.md`. `peruz grab.last` reads and re-emits.
+9. `grab.last` cache: write the last bundle to `<peruz-runtime-directory>/grab-last.md`. `peruz grab.last` reads and re-emits.
 10. Vitest unit tests for the formatter and extractor with fixture HTML.
 
 **Acceptance test (Trace will run; you should too before handoff):**

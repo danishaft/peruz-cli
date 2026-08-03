@@ -208,13 +208,17 @@ peruz mcp
 Send a direct socket request:
 
 ```bash
+SOCKET_PATH=$(node -p "require('./native/runtime-paths.cjs').SOCKET_PATH")
 printf '%s\n' \
   '{"type":"tool_request","method":"execute_tool","params":{"tool":"tab.list","args":{}},"id":"1"}' \
-  | nc -U /tmp/surf.sock
+  | nc -U "$SOCKET_PATH"
 ```
 
-The socket is created with mode `0600`. MCP and CLI requests still carry the
-same browser privileges as the installed extension.
+Peruz stores the socket and generated artifacts in an owner-only runtime
+directory. It uses `$PERUZ_RUNTIME_DIR` when set, then
+`$XDG_RUNTIME_DIR/peruz`, and otherwise `/tmp/peruz-<uid>`. The Unix socket and
+runtime files use mode `0600`; the directory uses mode `0700`. MCP and CLI
+requests still carry the same browser privileges as the installed extension.
 
 ## Architecture
 
@@ -243,7 +247,7 @@ Peruz can read page content, cookies, requests, and browser state, and can
 execute JavaScript in permitted pages. Treat it as a privileged local tool:
 
 - load the extension only from a trusted checkout or package;
-- do not expose `/tmp/surf.sock` through a network proxy;
+- do not expose the local Peruz socket through a network proxy;
 - inspect scripts before running `peruz --script`;
 - keep agent-controlled browser profiles separate from personal browsing when
   practical;

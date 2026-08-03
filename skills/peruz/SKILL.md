@@ -362,7 +362,7 @@ peruz perf.stop                 # Stop and get results
 ## Screenshots
 
 ```bash
-peruz screenshot                           # Auto-saves to /tmp/surf-snap-*.png
+peruz screenshot                           # Auto-saves to the private runtime directory
 peruz screenshot --output /tmp/shot.png    # Save to specific file
 peruz screenshot --selector ".card"        # Element only
 peruz screenshot --full-page               # Full page scroll capture
@@ -507,7 +507,7 @@ peruz workflow.validate workflow.json
 ```bash
 # Auto-capture screenshot + console on failure
 peruz wait.element ".missing" --auto-capture --timeout 2000
-# Saves to /tmp/surf-error-*.png
+# Saves to the private runtime directory
 ```
 
 ## Common Options
@@ -541,5 +541,6 @@ peruz wait.element ".missing" --auto-capture --timeout 2000
 For programmatic access:
 
 ```bash
-echo '{"type":"tool_request","method":"execute_tool","params":{"tool":"tab.list","args":{}},"id":"1"}' | nc -U /tmp/surf.sock
+SOCKET_PATH=$(node -p "require('./native/runtime-paths.cjs').SOCKET_PATH")
+echo '{"type":"tool_request","method":"execute_tool","params":{"tool":"tab.list","args":{}},"id":"1"}' | nc -U "$SOCKET_PATH"
 ```
