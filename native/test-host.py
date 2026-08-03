@@ -1,11 +1,31 @@
 #!/usr/bin/env python3
-import sys
-import struct
 import json
+import os
+import struct
+import sys
+import tempfile
+from pathlib import Path
 
-# Log to file
-with open("/tmp/pi-chrome-host.log", "a") as f:
-    f.write("Python host starting...\n")
+if configured_runtime_dir := os.environ.get("PERUZ_RUNTIME_DIR"):
+    runtime_dir = Path(configured_runtime_dir)
+elif xdg_runtime_dir := os.environ.get("XDG_RUNTIME_DIR"):
+    runtime_dir = Path(xdg_runtime_dir) / "peruz"
+else:
+    runtime_dir = Path(tempfile.gettempdir()) / f"peruz-{os.getuid()}"
+runtime_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+runtime_dir.chmod(0o700)
+log_path = runtime_dir / "test-host.log"
+
+
+def log(message):
+    descriptor = os.open(log_path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+    os.chmod(log_path, 0o600)
+    with os.fdopen(descriptor, "a", encoding="utf-8") as file:
+        file.write(f"{message}\n")
+
+
+log("Python host starting")
+
 
 def send_message(message):
     encoded = json.dumps(message).encode('utf-8')
@@ -16,8 +36,7 @@ def send_message(message):
 # Send ready message
 send_message({"type": "HOST_READY"})
 
-with open("/tmp/pi-chrome-host.log", "a") as f:
-    f.write("Sent HOST_READY, waiting for messages...\n")
+log("Sent HOST_READY, waiting for messages")
 
 # Read messages
 while True:
@@ -28,14 +47,11 @@ while True:
         length = struct.unpack('I', length_bytes)[0]
         message = sys.stdin.buffer.read(length).decode('utf-8')
         data = json.loads(message)
-        with open("/tmp/pi-chrome-host.log", "a") as f:
-            f.write(f"Received: {data}\n")
+        log(f"Received: type={data.get('type', 'unknown')} id={data.get('id', 'none')}")
         # Echo back
         send_message({"id": data.get("id"), "success": True})
-    except Exception as e:
-        with open("/tmp/pi-chrome-host.log", "a") as f:
-            f.write(f"Error: {e}\n")
+    except Exception as error:
+        log(f"Error: {type(error).__name__}")
         break
 
-with open("/tmp/pi-chrome-host.log", "a") as f:
-    f.write("Host exiting\n")
+log("Host exiting")

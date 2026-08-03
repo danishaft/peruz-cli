@@ -11,8 +11,7 @@
  */
 
 const net = require("net");
-
-const SOCKET_PATH = "/tmp/surf.sock";
+const { SOCKET_PATH } = require("./runtime-paths.cjs");
 
 // Maximum iterations for loops (safety cap)
 const MAX_LOOP_ITERATIONS = 100;

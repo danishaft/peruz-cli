@@ -8,6 +8,7 @@
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
+const { writeRestrictedFile } = require("./runtime-paths.cjs");
 
 // ============================================================================
 // Constants
@@ -108,7 +109,6 @@ function httpsGet(url, headers, opts = {}) {
         "user-agent": USER_AGENT,
         ...headers,
       },
-      rejectUnauthorized: false, // Required for Gemini API
       timeout: timeoutMs,
     };
 
@@ -162,7 +162,6 @@ function httpsPost(url, headers, body, opts = {}) {
         ...headers,
         ...(bodyBuffer && !hasLength ? { "content-length": String(bodyBuffer.length) } : {}),
       },
-      rejectUnauthorized: false, // Required for Gemini API
       timeout: timeoutMs,
     };
 
@@ -401,7 +400,7 @@ async function downloadGeminiImage(url, cookieMap, outputPath, opts = {}) {
   }
   
   // Write binary buffer directly
-  fs.writeFileSync(outputPath, res.buffer);
+  writeRestrictedFile(outputPath, res.buffer);
 }
 
 async function saveFirstGeminiImage(output, cookieMap, outputPath, opts = {}) {

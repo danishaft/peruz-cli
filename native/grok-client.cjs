@@ -6,6 +6,7 @@
  */
 
 const { loadConfig, getConfigPath, clearCache } = require("./config.cjs");
+const { writeRestrictedFile } = require("./runtime-paths.cjs");
 
 const GROK_URL = "https://x.com/i/grok";
 const DEFAULT_MODEL = "thinking";
@@ -952,7 +953,7 @@ function saveModels(models) {
     config.grok = config.grok || {};
     config.grok.models = models;
     
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+    writeRestrictedFile(configPath, JSON.stringify(config, null, 2) + "\n");
     clearCache(); // Clear config cache so subsequent reads see new values
     return { success: true, path: configPath };
   } catch (e) {

@@ -11,12 +11,19 @@ const grabJson = require("./formatters/grab-json.cjs");
 const networkStore = require("./network-store.cjs");
 const { parseDoCommands } = require("./do-parser.cjs");
 const { executeDoSteps } = require("./do-executor.cjs");
+const { resizeImage } = require("./image-tools.cjs");
+const {
+  SOCKET_PATH,
+  ensurePrivateDirectory,
+  runtimePath,
+  writeRestrictedFile,
+} = require("./runtime-paths.cjs");
 
-const SOCKET_PATH = "/tmp/surf.sock";
-const SESSION_FILE = "/tmp/peruz-session-win";
-const GRAB_LAST_FILE = "/tmp/peruz-grab-last.md";
-const GRAB_COUNTER_FILE = "/tmp/peruz-grab-counter";
-const GRAB_WATCH_FILE = "/tmp/peruz-grab-watch.json";
+ensurePrivateDirectory();
+const SESSION_FILE = runtimePath("session-window");
+const GRAB_LAST_FILE = runtimePath("grab-last.md");
+const GRAB_COUNTER_FILE = runtimePath("grab-counter");
+const GRAB_WATCH_FILE = runtimePath("grab-watch.json");
 
 function requirePinnedWindow() {
   if (!fs.existsSync(SESSION_FILE)) {
@@ -38,7 +45,7 @@ function nextGrabNumber() {
     if (!isNaN(parsed)) current = parsed;
   }
   const next = current + 1;
-  fs.writeFileSync(GRAB_COUNTER_FILE, String(next));
+  writeRestrictedFile(GRAB_COUNTER_FILE, String(next));
   return next;
 }
 
@@ -69,8 +76,8 @@ function writeClipboard(text) {
 function writeGrabScreenshot(screenshot, number) {
   if (!screenshot?.base64) return undefined;
   const grabId = String(number).padStart(3, "0");
-  const screenshotPath = `/tmp/peruz-grab-${grabId}.png`;
-  fs.writeFileSync(screenshotPath, Buffer.from(screenshot.base64, "base64"));
+  const screenshotPath = runtimePath(`grab-${grabId}.png`);
+  writeRestrictedFile(screenshotPath, Buffer.from(screenshot.base64, "base64"));
   return screenshotPath;
 }
 
@@ -104,7 +111,7 @@ function getGrabWatchState() {
 }
 
 function writeGrabWatchState(windowId) {
-  fs.writeFileSync(GRAB_WATCH_FILE, JSON.stringify({
+  writeRestrictedFile(GRAB_WATCH_FILE, JSON.stringify({
     pid: process.pid,
     windowId,
     startedAt: new Date().toISOString(),
@@ -385,40 +392,6 @@ function formatStep(step, indent = 0) {
   return line;
 }
 
-// Cross-platform image resize (macOS: sips, Linux: ImageMagick)
-function resizeImage(filePath, maxSize) {
-  const platform = process.platform;
-  
-  try {
-    if (platform === "darwin") {
-      // macOS: use sips
-      execSync(`sips --resampleHeightWidthMax ${maxSize} "${filePath}" --out "${filePath}" 2>/dev/null`, { stdio: "pipe" });
-      const sizeInfo = execSync(`sips -g pixelWidth -g pixelHeight "${filePath}" 2>/dev/null`, { encoding: "utf8" });
-      const width = parseInt(sizeInfo.match(/pixelWidth:\s*(\d+)/)?.[1] || "0", 10);
-      const height = parseInt(sizeInfo.match(/pixelHeight:\s*(\d+)/)?.[1] || "0", 10);
-      return { success: true, width, height };
-    } else {
-      // Linux/other: use ImageMagick (try IM6 first, then IM7)
-      try {
-        execSync(`convert "${filePath}" -resize ${maxSize}x${maxSize}\\> "${filePath}"`, { stdio: "pipe" });
-      } catch {
-        // IM7 uses 'magick' as main command
-        execSync(`magick "${filePath}" -resize ${maxSize}x${maxSize}\\> "${filePath}"`, { stdio: "pipe" });
-      }
-      // Get dimensions (IM7 may need 'magick identify' instead of just 'identify')
-      let sizeInfo;
-      try {
-        sizeInfo = execSync(`identify -format "%w %h" "${filePath}"`, { encoding: "utf8" });
-      } catch {
-        sizeInfo = execSync(`magick identify -format "%w %h" "${filePath}"`, { encoding: "utf8" });
-      }
-      const [width, height] = sizeInfo.trim().split(" ").map(Number);
-      return { success: true, width, height };
-    }
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
 const args = process.argv.slice(2);
 const VERSION = "2.5.2";
 
@@ -632,7 +605,7 @@ const TOOLS = {
         examples: [{ cmd: "forward", desc: "Browser forward" }]
       },
       "screenshot": { 
-        desc: "Capture screenshot (auto-saves to /tmp by default)", 
+        desc: "Capture screenshot (auto-saves to the private runtime directory by default)",
         args: [], 
         opts: { 
           output: "Save to file", 
@@ -645,14 +618,14 @@ const TOOLS = {
           "no-save": "Don't auto-save, return base64 + ID (saves context)"
         },
         examples: [
-          { cmd: "screenshot", desc: "Auto-save to /tmp (default)" },
+          { cmd: "screenshot", desc: "Auto-save to the private runtime directory (default)" },
           { cmd: "screenshot --output /tmp/shot.png", desc: "Save to specific file" },
           { cmd: "screenshot --no-save", desc: "Return base64 without saving" },
           { cmd: "screenshot --annotate", desc: "With element labels" },
           { cmd: "snap", desc: "Alias for screenshot" },
         ]
       },
-      "snap": { desc: "Alias for screenshot (auto-saves to /tmp)", args: [], alias: "screenshot" },
+      "snap": { desc: "Alias for screenshot (auto-saves privately)", args: [], alias: "screenshot" },
     }
   },
   scroll: {
@@ -1449,7 +1422,7 @@ Commands:
   screenshot --annotate --output file.png               With element labels
   screenshot --fullpage --output file.png               Full page capture
   screenshot --annotate --fullpage --output file.png    Full page with labels
-  snap                                                  Auto-save to /tmp
+  snap                                                  Auto-save privately
 
 Options:
   --output      Save path
@@ -1717,7 +1690,7 @@ Options:
   --tab-id <id>     Target specific tab
   --window-id <id>  Target specific window (isolate from your browsing)
   --json            Output raw JSON
-  --auto-capture    On error: capture screenshot + console to /tmp
+  --auto-capture    On error: capture screenshot + console to the private runtime directory
   --soft-fail       On error: warn and exit 0 (for non-critical commands)
 
 Script Mode:
@@ -2101,7 +2074,7 @@ if (args[0] === "session.start") {
         const str = typeof data === "string" ? data : "";
         const match = str.match(/Window (\d+)/);
         if (match) {
-          fs.writeFileSync(SESSION_FILE, match[1], "utf8");
+          writeRestrictedFile(SESSION_FILE, match[1], { encoding: "utf8" });
           console.log(str);
           console.log(`[session] Pinned to window ${match[1]}. All commands now auto-use --window-id ${match[1]}.`);
         } else {
@@ -2734,7 +2707,7 @@ if (tool === "grab.last") {
 const config = loadConfig();
 const autoSaveEnabled = config.autoSaveScreenshots !== false && !options["no-save"];
 if (tool === "screenshot" && !options.output && !options.savePath && autoSaveEnabled) {
-  options.savePath = `/tmp/surf-snap-${Date.now()}.png`;
+  options.savePath = runtimePath(`screenshot-${Date.now()}.png`);
 }
 
 if (tool === "smoke") {
@@ -3126,7 +3099,7 @@ const sendRequest = (toolName, toolArgs = {}, timeoutMs = 5000) => {
 
 const performAutoCapture = async () => {
   const timestamp = Date.now();
-  const screenshotPath = `/tmp/surf-error-${timestamp}.png`;
+  const screenshotPath = runtimePath(`error-${timestamp}.png`);
 
   try {
     const [screenshotResp, consoleResp] = await Promise.all([
@@ -3201,7 +3174,7 @@ async function runGrabWatch() {
     if (!data?.bundle) throw new Error("Grab returned no bundle");
 
     const output = formatGrabOutput(data, grabOutputFormat);
-    fs.writeFileSync(GRAB_LAST_FILE, output);
+    writeRestrictedFile(GRAB_LAST_FILE, output);
     if (!noCopy) writeClipboard(output);
     process.stdout.write(output.endsWith("\n") ? output : `${output}\n`);
   }
@@ -3357,12 +3330,12 @@ async function handleResponse(response) {
     }
 
     const output = formatGrabOutput(data, grabOutputFormat);
-    fs.writeFileSync(GRAB_LAST_FILE, output);
+    writeRestrictedFile(GRAB_LAST_FILE, output);
     if (!noCopy) writeClipboard(output);
     process.stdout.write(output);
   } else if (tool === "screenshot" && data?.base64 && (outputPath || toolArgs.savePath)) {
     const saveTo = outputPath || toolArgs.savePath;
-    fs.writeFileSync(saveTo, Buffer.from(data.base64, "base64"));
+    writeRestrictedFile(saveTo, Buffer.from(data.base64, "base64"));
     
     const skipResize = options.full || toolArgs.full;
     const maxSize = parseInt(options["max-size"] || toolArgs["max-size"] || "1200", 10);

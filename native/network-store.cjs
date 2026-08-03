@@ -11,9 +11,15 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const readline = require("readline");
+const {
+  PRIVATE_DIRECTORY_MODE,
+  PRIVATE_FILE_MODE,
+  runtimePath,
+  writeRestrictedFile,
+} = require("./runtime-paths.cjs");
 
 // Configuration
-const DEFAULT_BASE = "/tmp/surf";
+const DEFAULT_BASE = runtimePath("network");
 const DEFAULT_TTL = 24 * 60 * 60 * 1000;  // 24 hours
 const DEFAULT_MAX_SIZE = 200 * 1024 * 1024; // 200MB
 const AUTO_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
@@ -66,12 +72,12 @@ function getMetaPath() {
 function ensureDirectories() {
   const base = getBasePath();
   const bodies = getBodiesPath();
-  
-  if (!fs.existsSync(base)) {
-    fs.mkdirSync(base, { recursive: true });
-  }
-  if (!fs.existsSync(bodies)) {
-    fs.mkdirSync(bodies, { recursive: true });
+
+  fs.mkdirSync(base, { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
+  fs.mkdirSync(bodies, { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
+  if (process.platform !== "win32") {
+    fs.chmodSync(base, PRIVATE_DIRECTORY_MODE);
+    fs.chmodSync(bodies, PRIVATE_DIRECTORY_MODE);
   }
 }
 
@@ -96,7 +102,7 @@ function readMeta() {
 function writeMeta(meta) {
   const metaPath = getMetaPath();
   ensureDirectories();
-  fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+  writeRestrictedFile(metaPath, JSON.stringify(meta, null, 2));
 }
 
 /**
@@ -122,7 +128,7 @@ function storeBody(content, isRequest = false) {
   
   // Only write if doesn't exist (dedup)
   if (!fs.existsSync(bodyPath)) {
-    fs.writeFileSync(bodyPath, buffer);
+    writeRestrictedFile(bodyPath, buffer);
   }
   
   return hash;
@@ -187,7 +193,8 @@ async function appendEntry(entry) {
     const line = JSON.stringify(fullEntry) + "\n";
     
     // Atomic append using flag 'a'
-    fs.appendFileSync(getRequestsPath(), line, { flag: "a" });
+    fs.appendFileSync(getRequestsPath(), line, { flag: "a", mode: PRIVATE_FILE_MODE });
+    if (process.platform !== "win32") fs.chmodSync(getRequestsPath(), PRIVATE_FILE_MODE);
     
     return fullEntry;
   } finally {
@@ -220,7 +227,7 @@ function appendEntrySync(entry) {
   
   try {
     // Try to acquire lock
-    lockFd = fs.openSync(lockPath, "wx");
+    lockFd = fs.openSync(lockPath, "wx", PRIVATE_FILE_MODE);
   } catch (err) {
     // Lock exists - check if stale and remove, otherwise proceed without lock
     try {
@@ -228,7 +235,7 @@ function appendEntrySync(entry) {
       if (Date.now() - stat.mtimeMs > 5000) {
         fs.unlinkSync(lockPath);
         try {
-          lockFd = fs.openSync(lockPath, "wx");
+          lockFd = fs.openSync(lockPath, "wx", PRIVATE_FILE_MODE);
         } catch (e) {
           // Still can't get lock, proceed without it
         }
@@ -239,13 +246,15 @@ function appendEntrySync(entry) {
     
     if (lockFd === undefined) {
       // Proceed without lock as fallback
-      fs.appendFileSync(getRequestsPath(), line, { flag: "a" });
+      fs.appendFileSync(getRequestsPath(), line, { flag: "a", mode: PRIVATE_FILE_MODE });
+      if (process.platform !== "win32") fs.chmodSync(getRequestsPath(), PRIVATE_FILE_MODE);
       return fullEntry;
     }
   }
   
   try {
-    fs.appendFileSync(getRequestsPath(), line, { flag: "a" });
+    fs.appendFileSync(getRequestsPath(), line, { flag: "a", mode: PRIVATE_FILE_MODE });
+    if (process.platform !== "win32") fs.chmodSync(getRequestsPath(), PRIVATE_FILE_MODE);
   } finally {
     if (lockFd !== undefined) {
       fs.closeSync(lockFd);
@@ -682,7 +691,7 @@ async function cleanup(options = {}) {
     // Atomic write: write to temp then rename
     const tempPath = requestsPath + ".tmp";
     const content = entries.map(e => JSON.stringify(e)).join("\n") + (entries.length > 0 ? "\n" : "");
-    fs.writeFileSync(tempPath, content);
+    writeRestrictedFile(tempPath, content);
     fs.renameSync(tempPath, requestsPath);
   }
   
@@ -777,7 +786,7 @@ async function clear(options = {}) {
   if (deletedEntries > 0) {
     const tempPath = requestsPath + ".tmp";
     const content = remaining.map(e => JSON.stringify(e)).join("\n") + (remaining.length > 0 ? "\n" : "");
-    fs.writeFileSync(tempPath, content);
+    writeRestrictedFile(tempPath, content);
     fs.renameSync(tempPath, requestsPath);
   }
   

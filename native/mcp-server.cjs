@@ -3,8 +3,8 @@ const net = require("net");
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
 const { z } = require("zod");
+const { SOCKET_PATH } = require("./runtime-paths.cjs");
 
-const SOCKET_PATH = "/tmp/surf.sock";
 const REQUEST_TIMEOUT = 30000;
 
 const TOOL_SCHEMAS = {

@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { writeRestrictedFile } = require("./runtime-paths.cjs");
 
 const CONFIG_NAME = "surf.json";
 
@@ -8,7 +9,7 @@ let cachedConfig = null;
 let cachedConfigPath = null;
 
 const STARTER_CONFIG = {
-  // Set to false to disable auto-saving screenshots to /tmp
+  // Set to false to disable auto-saving screenshots to the private runtime directory
   // When disabled, screenshots return base64 + ID instead of file path
   autoSaveScreenshots: true,
   routes: {
@@ -81,7 +82,7 @@ function createStarterConfig(targetDir = process.cwd()) {
     return { success: false, error: "Config already exists", path: targetPath };
   }
   try {
-    fs.writeFileSync(targetPath, JSON.stringify(STARTER_CONFIG, null, 2) + "\n");
+    writeRestrictedFile(targetPath, JSON.stringify(STARTER_CONFIG, null, 2) + "\n");
     return { success: true, path: targetPath };
   } catch (err) {
     return { success: false, error: err.message, path: targetPath };

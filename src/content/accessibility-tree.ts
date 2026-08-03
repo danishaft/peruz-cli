@@ -655,10 +655,7 @@ function generateAccessibilityTree(
 
         const indent = "  ".repeat(depth);
         let line = `${indent}${role}`;
-        if (name) {
-          const escapedName = name.replace(/\s+/g, " ").replace(/"/g, '\\"');
-          line += ` "${escapedName}"`;
-        }
+        if (name) line += ` ${JSON.stringify(name.replace(/\s+/g, " "))}`;
         line += ` [${elemRefId}]`;
 
         const propsStr = formatAriaProps(ariaProps);
@@ -669,13 +666,13 @@ function generateAccessibilityTree(
         }
 
         const href = element.getAttribute("href");
-        if (href) line += ` href="${href}"`;
+        if (href) line += ` href=${JSON.stringify(href)}`;
 
         const type = element.getAttribute("type");
-        if (type) line += ` type="${type}"`;
+        if (type) line += ` type=${JSON.stringify(type)}`;
 
         const placeholder = element.getAttribute("placeholder");
-        if (placeholder) line += ` placeholder="${placeholder}"`;
+        if (placeholder) line += ` placeholder=${JSON.stringify(placeholder)}`;
 
         lines.push(line);
       }

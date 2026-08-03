@@ -2,7 +2,6 @@
 const net = require("net");
 const fs = require("fs");
 const path = require("path");
-const os = require("os");
 const https = require("https");
 const { execSync } = require("child_process");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
@@ -13,45 +12,18 @@ const grokClient = require("./grok-client.cjs");
 const { mapToolToMessage, mapComputerAction, formatToolContent } = require("./host-helpers.cjs");
 const grabMarkdown = require("./formatters/grab-markdown.cjs");
 const grabJson = require("./formatters/grab-json.cjs");
+const { resizeImage } = require("./image-tools.cjs");
+const {
+  RUNTIME_DIRECTORY,
+  SOCKET_PATH,
+  ensurePrivateDirectory,
+  runtimePath,
+  writeRestrictedFile,
+} = require("./runtime-paths.cjs");
+const { createBoundedLogger, describeMessage } = require("./security-helpers.cjs");
 
-const SOCKET_PATH = "/tmp/surf.sock";
-const GRAB_LAST_FILE = "/tmp/peruz-grab-last.md";
-const GRAB_COUNTER_FILE = "/tmp/peruz-grab-counter";
-
-// Cross-platform image resize (macOS: sips, Linux: ImageMagick)
-function resizeImage(filePath, maxSize) {
-  const platform = process.platform;
-  
-  try {
-    if (platform === "darwin") {
-      // macOS: use sips
-      execSync(`sips --resampleHeightWidthMax ${maxSize} "${filePath}" --out "${filePath}" 2>/dev/null`, { stdio: "pipe" });
-      const sizeInfo = execSync(`sips -g pixelWidth -g pixelHeight "${filePath}" 2>/dev/null`, { encoding: "utf8" });
-      const width = parseInt(sizeInfo.match(/pixelWidth:\s*(\d+)/)?.[1] || "0", 10);
-      const height = parseInt(sizeInfo.match(/pixelHeight:\s*(\d+)/)?.[1] || "0", 10);
-      return { success: true, width, height };
-    } else {
-      // Linux/other: use ImageMagick (try IM6 first, then IM7)
-      try {
-        execSync(`convert "${filePath}" -resize ${maxSize}x${maxSize}\\> "${filePath}"`, { stdio: "pipe" });
-      } catch {
-        // IM7 uses 'magick' as main command
-        execSync(`magick "${filePath}" -resize ${maxSize}x${maxSize}\\> "${filePath}"`, { stdio: "pipe" });
-      }
-      // Get dimensions (IM7 may need 'magick identify' instead of just 'identify')
-      let sizeInfo;
-      try {
-        sizeInfo = execSync(`identify -format "%w %h" "${filePath}"`, { encoding: "utf8" });
-      } catch {
-        sizeInfo = execSync(`magick identify -format "%w %h" "${filePath}"`, { encoding: "utf8" });
-      }
-      const [width, height] = sizeInfo.trim().split(" ").map(Number);
-      return { success: true, width, height };
-    }
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-}
+const GRAB_LAST_FILE = runtimePath("grab-last.md");
+const GRAB_COUNTER_FILE = runtimePath("grab-counter");
 
 function nextGrabNumber() {
   let current = 0;
@@ -60,7 +32,7 @@ function nextGrabNumber() {
     if (!isNaN(parsed)) current = parsed;
   }
   const next = current + 1;
-  fs.writeFileSync(GRAB_COUNTER_FILE, String(next));
+  writeRestrictedFile(GRAB_COUNTER_FILE, String(next));
   return next;
 }
 
@@ -90,8 +62,8 @@ function writeClipboard(text) {
 function writeGrabScreenshot(screenshot, number) {
   if (!screenshot?.base64) return undefined;
   const grabId = String(number).padStart(3, "0");
-  const screenshotPath = `/tmp/peruz-grab-${grabId}.png`;
-  fs.writeFileSync(screenshotPath, Buffer.from(screenshot.base64, "base64"));
+  const screenshotPath = runtimePath(`grab-${grabId}.png`);
+  writeRestrictedFile(screenshotPath, Buffer.from(screenshot.base64, "base64"));
   return screenshotPath;
 }
 
@@ -119,9 +91,7 @@ async function processAiQueue() {
     setTimeout(processAiQueue, 2000);
   }
 }
-const LOG_FILE = "/tmp/surf-host.log";
-const AUTH_FILE = path.join(os.homedir(), ".pi", "agent", "auth.json");
-
+const LOG_FILE = runtimePath("host.log");
 const DEFAULT_RETRY_OPTIONS = {
   maxRetries: 3,
   initialDelayMs: 1000,
@@ -234,7 +204,10 @@ class GeminiClient {
   }
 
   async analyze(query, pageContext, options = {}) {
-    const mode = options.mode || detectQueryMode(query);
+    const requestedMode = options.mode;
+    const mode = requestedMode && Object.hasOwn(AI_PROMPTS, requestedMode)
+      ? requestedMode
+      : detectQueryMode(query);
     const promptFn = AI_PROMPTS[mode];
     const prompt = promptFn(query, pageContext);
     
@@ -257,11 +230,10 @@ class GeminiClient {
 
 async function handleApiRequest(msg, sendResponse) {
   const { url, method, headers, body, streamId } = msg;
-  
-  log(`API_REQUEST: ${method} ${url} streamId=${streamId}`);
-  
+
   try {
     const urlObj = new URL(url);
+    log(`API_REQUEST: ${method || "POST"} ${urlObj.origin}${urlObj.pathname} streamId=${streamId}`);
     const options = {
       hostname: urlObj.hostname,
       port: urlObj.port || 443,
@@ -328,9 +300,8 @@ async function handleApiRequest(msg, sendResponse) {
   }
 }
 
-const log = (msg) => {
-  fs.appendFileSync(LOG_FILE, `${new Date().toISOString()} ${msg}\n`);
-};
+ensurePrivateDirectory();
+const log = createBoundedLogger(LOG_FILE);
 
 log("Host starting...");
 
@@ -1155,7 +1126,7 @@ function handleExtensionGrabSave(msg) {
     const output = msg.format === "json"
       ? `${JSON.stringify(grabJson.formatGrabJson(msg.bundle, { number, screenshotPath }), null, 2)}\n`
       : grabMarkdown.formatGrabMarkdown(msg.bundle, { number, screenshotPath });
-    fs.writeFileSync(GRAB_LAST_FILE, output);
+    writeRestrictedFile(GRAB_LAST_FILE, output);
     const copied = writeClipboard(output);
     writeMessage({
       id: msg.id,
@@ -1182,31 +1153,7 @@ function processInput() {
     
     try {
       const msg = JSON.parse(jsonStr);
-      log(`Received from extension: ${JSON.stringify(msg)}`);
-      
-      if (msg.type === "GET_AUTH") {
-        log("Handling GET_AUTH from extension");
-        try {
-          if (fs.existsSync(AUTH_FILE)) {
-            const authData = JSON.parse(fs.readFileSync(AUTH_FILE, "utf8"));
-            writeMessage({ id: msg.id, auth: authData, hint: null });
-          } else {
-            writeMessage({ 
-              id: msg.id, 
-              auth: null, 
-              hint: "No OAuth credentials found. Run 'pi --login anthropic' in terminal to authenticate with Claude Max."
-            });
-          }
-        } catch (e) {
-          log(`Error reading auth file: ${e.message}`);
-          writeMessage({ 
-            id: msg.id, 
-            auth: null, 
-            hint: "Failed to read auth credentials. Run 'pi --login anthropic' in terminal to authenticate."
-          });
-        }
-        return;
-      }
+      log(`Received from extension: ${describeMessage(msg)}`);
       
       if (msg.type === "API_REQUEST") {
         handleApiRequest(msg, writeMessage);
@@ -1258,7 +1205,7 @@ function processInput() {
             try {
               const dir = path.dirname(savePath);
               if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-              fs.writeFileSync(savePath, Buffer.from(msg.base64, "base64"));
+              writeRestrictedFile(savePath, Buffer.from(msg.base64, "base64"));
               const origWidth = msg.width || 0;
               const origHeight = msg.height || 0;
               const maxSize = pending.maxSize || 1200;
@@ -1282,15 +1229,15 @@ function processInput() {
           } else if (autoScreenshot && tabId && !msg.error && !msg.base64) {
             
             const screenshotId = ++requestCounter;
-            const screenshotPath = `/tmp/pi-auto-${Date.now()}.png`;
+            const screenshotPath = runtimePath(`auto-${Date.now()}.png`);
             
-            const autoFiles = fs.readdirSync("/tmp")
-              .filter(f => f.startsWith("pi-auto-") && f.endsWith(".png"))
-              .map(f => ({ name: f, time: parseInt(f.match(/pi-auto-(\d+)\.png/)?.[1] || "0", 10) }))
+            const autoFiles = fs.readdirSync(RUNTIME_DIRECTORY)
+              .filter(f => f.startsWith("auto-") && f.endsWith(".png"))
+              .map(f => ({ name: f, time: parseInt(f.match(/auto-(\d+)\.png/)?.[1] || "0", 10) }))
               .sort((a, b) => b.time - a.time);
             if (autoFiles.length >= 10) {
               autoFiles.slice(9).forEach(f => {
-                try { fs.unlinkSync(path.join("/tmp", f.name)); } catch (e) {}
+                try { fs.unlinkSync(path.join(RUNTIME_DIRECTORY, f.name)); } catch (e) {}
               });
             }
             pendingToolRequests.set(screenshotId, {
@@ -1300,7 +1247,7 @@ function processInput() {
               onComplete: (screenshotMsg) => {
                 if (screenshotMsg.base64) {
                   try {
-                    fs.writeFileSync(screenshotPath, Buffer.from(screenshotMsg.base64, "base64"));
+                    writeRestrictedFile(screenshotPath, Buffer.from(screenshotMsg.base64, "base64"));
                     const origW = screenshotMsg.width || 0;
                     const origH = screenshotMsg.height || 0;
                     let finalW = origW, finalH = origH;
@@ -1335,7 +1282,7 @@ function processInput() {
               for (const result of msg.results) {
                 if (result.screenshotBase64 && result.hostname) {
                   const ssPath = path.join(dir, `${result.hostname}.png`);
-                  fs.writeFileSync(ssPath, Buffer.from(result.screenshotBase64, "base64"));
+                  writeRestrictedFile(ssPath, Buffer.from(result.screenshotBase64, "base64"));
                   result.screenshot = ssPath;
                   delete result.screenshotBase64;
                   delete result.hostname;
@@ -1425,34 +1372,6 @@ const server = net.createServer((socket) => {
       if (!line.trim()) continue;
       try {
         const msg = JSON.parse(line);
-        
-        if (msg.type === "GET_AUTH") {
-          log("Handling GET_AUTH locally");
-          try {
-            if (fs.existsSync(AUTH_FILE)) {
-              const authData = JSON.parse(fs.readFileSync(AUTH_FILE, "utf8"));
-              socket.write(JSON.stringify({ 
-                id: msg.id || 0,
-                auth: authData,
-                hint: null
-              }) + "\n");
-            } else {
-              socket.write(JSON.stringify({ 
-                id: msg.id || 0,
-                auth: null,
-                hint: "No OAuth credentials found. Run 'pi --login anthropic' in terminal to authenticate with Claude Max."
-              }) + "\n");
-            }
-          } catch (e) {
-            log(`Error reading auth file: ${e.message}`);
-            socket.write(JSON.stringify({ 
-              id: msg.id || 0,
-              auth: null,
-              hint: "Failed to read auth credentials. Run 'pi --login anthropic' in terminal to authenticate."
-            }) + "\n");
-          }
-          continue;
-        }
         
         if (msg.type === "tool_request") {
           log("Handling tool_request: " + msg.method + " " + (msg.params?.tool || ""));
