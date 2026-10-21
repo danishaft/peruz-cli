@@ -55,7 +55,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@jridgewell/source-map": "^0.3.11",
-    "@modelcontextprotocol/sdk": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.1",
     "events": "^3.3.0",
